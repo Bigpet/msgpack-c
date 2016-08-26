@@ -12,7 +12,7 @@
 
 #include "msgpack/cpp_config.hpp"
 
-#if defined(MSGPACK_USE_CPP03)
+#if defined(MSGPACK_USE_CPP03) && !defined(_MSC_VER)
 #include "msgpack/v1/detail/cpp03_zone.hpp"
 #else  // MSGPACK_USE_CPP03
 #include "msgpack/v1/detail/cpp11_zone.hpp"

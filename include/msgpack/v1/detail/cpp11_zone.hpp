@@ -18,6 +18,12 @@
 #include <memory>
 #include <vector>
 
+#ifdef MSGPACK_USE_CPP03
+#define MSGPACK_NOEXCEPT
+#else
+#define MSGPACK_NOEXCEPT noexcept
+#endif
+
 namespace msgpack {
 
 /// @cond
@@ -81,14 +87,14 @@ private:
 
             ++m_tail;
         }
-        finalizer_array(finalizer_array&& other) noexcept
+        finalizer_array(finalizer_array&& other) MSGPACK_NOEXCEPT
             :m_tail(other.m_tail), m_end(other.m_end), m_array(other.m_array)
         {
             other.m_tail = MSGPACK_NULLPTR;
             other.m_end = MSGPACK_NULLPTR;
             other.m_array = MSGPACK_NULLPTR;
         }
-        finalizer_array& operator=(finalizer_array&& other) noexcept
+        finalizer_array& operator=(finalizer_array&& other) MSGPACK_NOEXCEPT
         {
             this->~finalizer_array();
             new (this) finalizer_array(std::move(other));
@@ -145,12 +151,12 @@ private:
             m_free = chunk_size;
             m_ptr  = reinterpret_cast<char*>(m_head) + sizeof(chunk);
         }
-        chunk_list(chunk_list&& other) noexcept
+        chunk_list(chunk_list&& other) MSGPACK_NOEXCEPT
             :m_free(other.m_free), m_ptr(other.m_ptr), m_head(other.m_head)
         {
             other.m_head = MSGPACK_NULLPTR;
         }
-        chunk_list& operator=(chunk_list&& other) noexcept
+        chunk_list& operator=(chunk_list&& other) MSGPACK_NOEXCEPT
         {
             this->~chunk_list();
             new (this) chunk_list(std::move(other));
@@ -169,7 +175,7 @@ private:
     finalizer_array m_finalizer_array;
 
 public:
-    zone(size_t chunk_size = MSGPACK_ZONE_CHUNK_SIZE) noexcept;
+    zone(size_t chunk_size = MSGPACK_ZONE_CHUNK_SIZE) MSGPACK_NOEXCEPT;
 
 public:
     void* allocate_align(size_t size, size_t align = MSGPACK_ZONE_ALIGN);
@@ -191,23 +197,32 @@ public:
         if (!p) throw std::bad_alloc();
         return p;
     }
-    static void operator delete(void *p) noexcept
+    static void operator delete(void *p) MSGPACK_NOEXCEPT
     {
         ::free(p);
     }
-    static void* operator new(std::size_t /*size*/, void* mem) noexcept
+    static void* operator new(std::size_t /*size*/, void* mem) MSGPACK_NOEXCEPT
     {
         return mem;
     }
-    static void operator delete(void * /*p*/, void* /*mem*/) noexcept
+    static void operator delete(void * /*p*/, void* /*mem*/) MSGPACK_NOEXCEPT
     {
     }
 
     template <typename T, typename... Args>
     T* allocate(Args... args);
 
-    zone(zone&&) = default;
-    zone& operator=(zone&&) = default;
+    zone(zone&& rhs) :
+        m_chunk_size(std::move(rhs.m_chunk_size)),
+        m_chunk_list(std::move(rhs.m_chunk_list)),
+        m_finalizer_array(std::move(rhs.m_finalizer_array))
+    {};
+    zone& operator=(zone&& rhs) 
+    {
+        this->~zone(); 
+        new (this) zone(std::move(rhs));
+        return *this;
+    };
     zone(const zone&) = delete;
     zone& operator=(const zone&) = delete;
 
@@ -223,7 +238,7 @@ private:
     void* allocate_expand(size_t size);
 };
 
-inline zone::zone(size_t chunk_size) noexcept:m_chunk_size(chunk_size), m_chunk_list(m_chunk_size)
+inline zone::zone(size_t chunk_size) MSGPACK_NOEXCEPT:m_chunk_size(chunk_size), m_chunk_list(m_chunk_size)
 {
 }
 
